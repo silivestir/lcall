@@ -1,0 +1,56 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 0;
+}
+
+#menu-bar {
+    background-color: #333;
+    color: white;
+    padding: 10px;
+    display: flex;
+    justify-content: space-around;
+}
+
+#menu-bar button {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+#content {
+    padding: 20px;
+}
+
+.section {
+    display: none;
+}
+
+#messages {
+    max-height: 300px;
+    overflow-y: auto;
+    margin-bottom: 10px;
+}
+
+.message {
+    padding: 10px;
+    background-color: #ddd;
+    margin-bottom: 5px;
+    border-radius: 5px;
+}
+
+.status {
+    padding: 15px;
+    background-color: #e4e4e4;
+    margin-bottom: 10px;
+    border-radius: 10px;
+}
+
+#chat-input {
+    width: calc(100% - 20px);
+    padding: 10px;
+    font-size: 16px;
+}

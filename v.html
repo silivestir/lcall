@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Game</title>
+    <style>
+        #game {
+            display: grid;
+            grid-template-columns: repeat(20, 20px);
+            grid-template-rows: repeat(20, 20px);
+            gap: 1px;
+            background-color: black;
+        }
+        .cell {
+            width: 20px;
+            height: 20px;
+            background-color: white;
+        }
+        .snake {
+            background-color: yellow;
+        }
+        .food {
+            background-color: red;
+        }
+    </style>
+</head>
+<body>
+    <div id="game"></div>
+
+    <script>
+        const boardSize = 20;
+        const gameDiv = document.getElementById('game');
+        const cells = [];
+
+        // Initialize the game board
+        for (let i = 0; i < boardSize * boardSize; i++) {
+            const cell = document.createElement('div');
+            cell.classList.add('cell');
+            gameDiv.appendChild(cell);
+            cells.push(cell);
+        }
+
+        // Snake state
+        let snake = [2, 1, 0]; // Initial snake position
+        let direction = 1; // 1 = right, -1 = left, boardSize = down, -boardSize = up
+        let food = Math.floor(Math.random() * cells.length);
+
+        function updateGame() {
+            // Move the snake
+            const head = snake[0];
+            const newHead = head + direction;
+
+            if (newHead === food) {
+                snake.unshift(food); // Eat food
+                food = Math.floor(Math.random() * cells.length);
+            } else {
+                snake.pop(); // Remove tail
+                snake.unshift(newHead); // Move head
+            }
+
+
+            
+            for(let a=0;a<cells.length;a++){
+              const cellValue=cells[a]
+              const tryt=cellValue.classList;
+              
+              tryt.remove('snake', 'food')
+            }
+            
+           
+            
+          snake.forEach(index =>{ 
+           // console.log(index)
+            
+              
+              
+            });
+            
+            
+            for(a=3;a<snake.length;a++){
+              cells[a].classList.add('snake')
+            }
+            
+           
+        }
+
+        function gameLoop() {
+            updateGame();
+            setTimeout(gameLoop, 200); // Run every 200ms
+        }
+
+        function changeDirection(event) {
+            switch (event.key) {
+                case 'ArrowUp':
+                    if (direction !== boardSize) direction = -boardSize;
+                    break;
+                case 'ArrowDown':
+                    if (direction !== -boardSize) direction = boardSize;
+                    break;
+                case 'ArrowLeft':
+                    if (direction !== 1) direction = -1;
+                    break;
+                case 'ArrowRight':
+                    if (direction !== -1) direction = 1;
+                    break;
+            }
+        }
+
+        document.addEventListener('keydown', changeDirection);
+        gameLoop(); // Start the game loop
+    </script>
+</body>
+</html>

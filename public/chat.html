@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat App</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        #chat-box { border: 1px solid #ccc; height: 400px; overflow-y: scroll; }
+        .message { margin: 5px; }
+        .message.from-me { text-align: right; }
+        #registration-form { margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Chat App</h1>
+    <div id="registration-form">
+        <h2>Register</h2>
+        <input type="text" id="username" placeholder="Enter username" />
+        <input type="file" id="profilePhoto" />
+        <button onclick="register()">Register</button>
+        <div id="registration-message"></div>
+    </div>
+    <div id="user-list"></div>
+    <div id="chat-box"></div>
+    <textarea id="message-input" placeholder="Type a message"></textarea>
+    <button onclick="sendMessage()">Send</button>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let currentUser = null;
+        let recipient = null;
+
+        function register() {
+            const username = document.getElementById('username').value;
+            const profilePhoto = document.getElementById('profilePhoto').files[0];
+            const formData = new FormData();
+            formData.append('name', username);
+            if (profilePhoto) {
+                formData.append('profilePhoto', profilePhoto);
+            }
+
+            fetch('/register', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (response.ok) {
+                    socket.emit('register', username);
+                } else {
+                    document.getElementById('registration-message').innerText = 'Registration failed';
+                }
+            });
+        }
+
+        socket.on('registration_success', (userName) => {
+            currentUser = userName;
+            fetchUsers();
+            document.getElementById('registration-form').style.display = 'none';
+        });
+
+        socket.on('registration_error', (message) => {
+            document.getElementById('registration-message').innerText = message;
+        });
+
+        function fetchUsers() {
+            fetch('/users')
+                .then(response => response.json())
+                .then(users => {
+                    const userList = document.getElementById('user-list');
+                    userList.innerHTML = '';
+                    users.forEach(user => {
+                        const userItem = document.createElement('div');
+                        userItem.innerHTML = `<img src="uploads/${user.profilePhoto}" alt="${user.name}" width="50" height="50"/> ${user.name}`;
+                        userItem.onclick = () => startChat(user.name);
+                        userList.appendChild(userItem);
+                    });
+                });
+        }
+
+        function startChat(userName) {
+            recipient = userName;
+            socket.emit('get_chat', recipient);
+            document.getElementById('chat-box').innerHTML = '';
+        }
+
+        function sendMessage() {
+            const messageInput = document.getElementById('message-input');
+            const message = messageInput.value;
+            if (recipient && message) {
+                socket.emit('send_message', { recipient, message });
+                messageInput.value = '';
+            }
+        }
+
+        socket.on('user_connected', (userName) => {
+            console.log(`${userName} connected`);
+        });
+
+        socket.on('user_disconnected', (userName) => {
+            console.log(`${userName} disconnected`);
+        });
+
+        socket.on('chat_history', (chatHistory) => {
+            const chatBox = document.getElementById('chat-box');
+            chatBox.innerHTML = '';
+            chatHistory.forEach(msg => {
+                const messageElem = document.createElement('div');
+                messageElem.className = 'message';
+                messageElem.classList.add(msg.from === currentUser ? 'from-me' : '');
+                messageElem.innerText = `${msg.from}: ${msg.message}`;
+                chatBox.appendChild(messageElem);
+            });
+        });
+
+        socket.on('receive_message', (data) => {
+            const chatBox = document.getElementById('chat-box');
+            const messageElem = document.createElement('div');
+            messageElem.className = 'message';
+            messageElem.classList.add(data.from === currentUser ? 'from-me' : '');
+            messageElem.innerText = `${data.from}: ${data.message}`;
+            chatBox.appendChild(messageElem);
+        });
+    </script>
+</body>
+</html>

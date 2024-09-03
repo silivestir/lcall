@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Splannes Aviator Multiplier Signal</title>
+    <style>
+        #prediction-result {
+            color: red;
+            font-size: 24px;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        #progress-bar-container {
+            margin-top: 20px;
+            width: 100%;
+            background-color: #f3f3f3;
+            border: 1px solid #ddd;
+        }
+        #progress-bar {
+            height: 30px;
+            width: 0%;
+            background-color: #4caf50;
+            text-align: center;
+            color: white;
+            line-height: 30px;
+        }
+        #fine-tune-inputs {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h3>Splannes Aviator Multiplier Signal[SAMS]</h3>
+    <label for="epochs">Epochs:</label>
+    <input type="number" id="epochs" value="50" min="1" required>
+
+    <label for="learningRate">Learning Rate:</label>
+    <input type="number" id="learningRate" step="0.001" value="0.001" min="0.0001" required>
+
+    <button onclick="generateAndTrain()">Generate and Train</button>
+
+    <h3>Fine-Tune Model</h3>
+    <div id="fine-tune-inputs">
+        <label for="color">Color (0 or 1):</label>
+        <input type="number" id="color" min="0" max="1" required>
+
+        <label for="multiplier">Multiplier (1.00 to 400):</label>
+        <input type="number" id="multiplier" step="0.01" min="1.00" max="400" required>
+
+        <button onclick="addFineTuneData()">Add Data</button>
+        <button onclick="fineTuneModel()">Fine-Tune</button>
+    </div>
+
+    <h3>Predict Next Multiplier</h3>
+    <button onclick="predictNextMultiplier()">Predict</button>
+
+    <div id="progress-bar-container">
+        <div id="progress-bar">0%</div>
+    </div>
+    <div id="training-status"></div>
+
+    <div id="prediction-result"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script>
+        let model;
+        let fineTuneDataset = [];
+
+        function createModel(learningRate) {
+            model = tf.sequential();
+            model.add(tf.layers.dense({ units: 50, inputShape: [2], activation: 'relu' }));
+            model.add(tf.layers.dense({ units: 25, activation: 'relu' }));
+            model.add(tf.layers.dense({ units: 1 }));
+
+            model.compile({
+                optimizer: tf.train.adam(learningRate),
+                loss: 'meanSquaredError'
+            });
+
+            return model;
+        }
+
+        function generateAndTrain() {
+            const dataset = GenerateDataset(10000);
+
+            const inputs = dataset.map(d => [d.color, d.target]);
+            const labels = dataset.map(d => d.target);
+
+            const inputTensor = tf.tensor2d(inputs);
+            const labelTensor = tf.tensor2d(labels, [labels.length, 1]);
+
+            const epochs = parseInt(document.getElementById('epochs').value);
+            const learningRate = parseFloat(document.getElementById('learningRate').value);
+
+            createModel(learningRate);
+
+            model.fit(inputTensor, labelTensor, {
+                epochs: epochs,
+                callbacks: {
+                    onEpochEnd: (epoch, logs) => {
+                        const progress = ((epoch + 1) / epochs) * 100;
+                        document.getElementById('progress-bar').style.width = progress + '%';
+                        document.getElementById('progress-bar').innerText = Math.round(progress) + '%';
+                        document.getElementById('training-status').innerText = `Epoch: ${epoch + 1}, Loss: ${logs.loss.toFixed(4)}`;
+                    }
+                }
+            }).then(() => {
+                document.getElementById('training-status').innerText += '\nModel training complete';
+                document.getElementById('progress-bar').style.width = '100%';
+                document.getElementById('progress-bar').innerText = '100%';
+            });
+        }
+
+        function addFineTuneData() {
+            const colorInput = parseFloat(document.getElementById('color').value);
+            const multiplierInput = parseFloat(document.getElementById('multiplier').value);
+
+            if (isNaN(colorInput) || isNaN(multiplierInput)) {
+                alert('Please enter valid values for color and multiplier');
+                return;
+            }
+
+            fineTuneDataset.push({
+                color: colorInput,
+                target: multiplierInput
+            });
+
+            alert(`Data added! Current count: ${fineTuneDataset.length}`);
+        }
+
+        function fineTuneModel() {
+            if (fineTuneDataset.length < 10) {
+                alert('Please add at least 10 rounds of data for fine-tuning.');
+                return;
+            }
+
+            const inputs = fineTuneDataset.map(d => [d.color, d.target]);
+            const labels = fineTuneDataset.map(d => d.target);
+
+            const inputTensor = tf.tensor2d(inputs);
+            const labelTensor = tf.tensor2d(labels, [labels.length, 1]);
+
+            model.fit(inputTensor, labelTensor, {
+                epochs: 10, // Fine-tune for a few epochs
+                callbacks: {
+                    onEpochEnd: (epoch, logs) => {
+                        document.getElementById('training-status').innerText = `Fine-tuning Epoch: ${epoch + 1}, Loss: ${logs.loss.toFixed(4)}`;
+                    }
+                }
+            }).then(() => {
+                document.getElementById('training-status').innerText += '\nFine-tuning complete';
+                fineTuneDataset = []; // Clear dataset after fine-tuning
+            });
+        }
+
+        function predictNextMultiplier() {
+            // Use the model to predict the next multiplier
+            const colorInput = parseFloat(document.getElementById('color').value) || 1; // Default to 1 if not provided
+            const targetInput = Math.random() * (4.00 - 1.00) + 1.00; // Random value within the range
+            const inputTensor = tf.tensor2d([[colorInput, targetInput]]);
+
+            const prediction = model.predict(inputTensor);
+            prediction.data().then(predictedValue => {
+                document.getElementById('prediction-result').innerText = `x${predictedValue[0].toFixed(2)}`;
+            });
+        }
+
+        function GenerateDataset(size) {
+            var dataset = [];
+            var rareEventProbability = 0.01; // Probability of generating a rare event
+
+            for (let i = 0; i < size; i++) {
+                var target;
+                if (Math.random() < rareEventProbability) {
+                    // Generate a rare event
+                    target = parseFloat((Math.random() * (4.00 - 2.10) + 2.10).toFixed(2));
+                } else {
+                    // Generate normal event
+                    target = parseFloat((Math.random() * (4.23 - 1.00) + 1.00).toFixed(2));
+                }
+
+                var prev_target = parseFloat((Math.random() * (4.23 - 1.00) + 1.00).toFixed(2));
+                var mean = parseFloat(((prev_target + target) / 2).toFixed(2));
+                var variance = parseFloat(Math.abs(target - mean).toFixed(2));
+                var color = target >= 2 ? 1 : 0;
+
+                dataset.push({
+                    color: color,
+                    mean: mean,
+                    var: variance,
+                    target: target
+                });
+            }
+
+            return dataset;
+        }
+    </script>
+</body>
+</html>
